@@ -125,6 +125,24 @@ func (a *AntispamBot) IsItMessage(message *tgbotapi.Message) bool {
 	return true
 }
 
+func (a *AntispamBot) HandleUpdate(update tgbotapi.Update) {
+	message := update.Message
+	if !a.IsItMessage(message) {
+		return
+	}
+	if message.NewChatMember != nil {
+		a.HandleIn(message)
+		return
+	}
+	if message.LeftChatMember != nil {
+		a.HandleOut(message)
+		return
+	}
+	if a.IsItSpamMessage(message) {
+		a.HandleSpamMessage(message)
+	}
+}
+
 func (a *AntispamBot) Start() error {
 	go a.GC()
 	updates, err := a.Bot.GetUpdatesChan(a.BotUpdateConfig)
@@ -132,21 +150,7 @@ func (a *AntispamBot) Start() error {
 		return err
 	}
 	for update := range updates {
-		message := update.Message
-		if !a.IsItMessage(message) {
-			continue
-		}
-		if message.NewChatMember != nil {
-			a.HandleIn(message)
-			continue
-		}
-		if message.LeftChatMember != nil {
-			a.HandleOut(message)
-			continue
-		}
-		if a.IsItSpamMessage(message) {
-			a.HandleSpamMessage(message)
-		}
+		a.HandleUpdate(update)
 	}
 	return nil
 }
