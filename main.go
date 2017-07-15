@@ -16,17 +16,17 @@ const defaultTimeout = 5 * time.Minute
 var TokenFlag = flag.String("token", "", "Telegram Bot API token")
 
 type AntispamBot struct {
-	Token       string
-	Bot         *tgbotapi.BotAPI
-	SpamUserIDs map[int]int
-	UserMap     map[int]time.Time
+	Token            string
+	Bot              *tgbotapi.BotAPI
+	UserSpamCounters map[int]int
+	UserMap          map[int]time.Time
 }
 
 func NewBot(token string) *AntispamBot {
 	return &AntispamBot{
-		Token:       token,
-		SpamUserIDs: map[int]int{},
-		UserMap:     map[int]time.Time{},
+		Token:            token,
+		UserSpamCounters: map[int]int{},
+		UserMap:          map[int]time.Time{},
 	}
 }
 
@@ -67,8 +67,8 @@ func (a *AntispamBot) HandleOut(message *tgbotapi.Message) {
 	delete(a.UserMap, user.ID)
 }
 
-func (a *AntispamBot) HandleMessage(message *tgbotapi.Message) {
-	a.IncSpamCounter(message.From)
+func (a *AntispamBot) HandleSpamMessage(message *tgbotapi.Message) {
+	a.IncreaseUserSpamCounter(message.From)
 	log.Printf("SPAM: user=%v message=%s", message.From, message.Text)
 	msg := tgbotapi.NewMessage(message.Chat.ID, "Is it spam?")
 	a.Bot.Send(msg)
@@ -84,20 +84,20 @@ func (a *AntispamBot) IsSpamMessage(message *tgbotapi.Message) bool {
 		return false
 	}
 	if time.Now().Sub(date) <= defaultTimeout {
-		log.Printf("Spam from user %d...", user.ID)
+		log.Printf("[timeout] Spam from user %d...", user.ID)
 		return true
 	}
 	return false
 }
 
-func (a *AntispamBot) IncSpamCounter(user *tgbotapi.User) {
+func (a *AntispamBot) IncreaseUserSpamCounter(user *tgbotapi.User) {
 	log.Printf("Increase spam counter for user %d...", user.ID)
-	counter, ok := a.SpamUserIDs[user.ID]
+	counter, ok := a.UserSpamCounters[user.ID]
 	if !ok {
 		counter = 0
 	}
 	counter++
-	a.SpamUserIDs[user.ID] = counter
+	a.UserSpamCounters[user.ID] = counter
 }
 
 func (a *AntispamBot) Start() error {
@@ -112,14 +112,17 @@ func (a *AntispamBot) Start() error {
 		if update.Message == nil || update.Message.From == nil {
 			continue
 		}
-		if update.Message.NewChatMember != nil {
-			a.HandleIn(update.Message)
+		message := update.Message
+		if message.NewChatMember != nil {
+			a.HandleIn(message)
+			continue
 		}
-		if update.Message.LeftChatMember != nil {
-			a.HandleOut(update.Message)
+		if message.LeftChatMember != nil {
+			a.HandleOut(message)
+			continue
 		}
-		if a.IsSpamMessage(update.Message) {
-			a.HandleMessage(update.Message)
+		if a.IsSpamMessage(message) {
+			a.HandleSpamMessage(message)
 		}
 	}
 	return nil
