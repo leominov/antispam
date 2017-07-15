@@ -11,7 +11,10 @@ import (
 	"gopkg.in/telegram-bot-api.v4"
 )
 
-const defaultTimeout = 5 * time.Minute
+const (
+	defaultUserTimeout = 5 * time.Minute
+	defaultGcInterval  = time.Minute
+)
 
 var TokenFlag = flag.String("token", "", "Telegram Bot API token")
 
@@ -44,14 +47,15 @@ func (a *AntispamBot) Configure() error {
 }
 
 func (a *AntispamBot) GC() {
+	log.Printf("Starting gc with %s interval...", defaultGcInterval)
 	for {
 		for userID, date := range a.UserMap {
-			if time.Now().Sub(date) > defaultTimeout {
+			if time.Now().Sub(date) > defaultUserTimeout {
 				log.Printf("Delete user %d by timeout...", userID)
 				delete(a.UserMap, userID)
 			}
 		}
-		time.Sleep(time.Minute)
+		time.Sleep(defaultGcInterval)
 	}
 }
 
@@ -83,7 +87,7 @@ func (a *AntispamBot) IsSpamMessage(message *tgbotapi.Message) bool {
 	if !ok {
 		return false
 	}
-	if time.Now().Sub(date) <= defaultTimeout {
+	if time.Now().Sub(date) <= defaultUserTimeout {
 		log.Printf("[timeout] Spam from user %d...", user.ID)
 		return true
 	}
