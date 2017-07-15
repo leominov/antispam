@@ -158,7 +158,7 @@ func (a *AntispamBot) Start() error {
 	return nil
 }
 
-func main() {
+func realMain() int {
 	var err error
 	flag.Parse()
 	log.Print("Starting anti-spam bot...")
@@ -166,11 +166,16 @@ func main() {
 	err = bot.Configure()
 	if err != nil {
 		log.Print(err)
-		os.Exit(2)
+		return 2
 	}
 	err = bot.Start()
 	if err != nil {
 		log.Print(err)
-		os.Exit(2)
+		return 2
 	}
+	return 0
+}
+
+func main() {
+	os.Exit(realMain())
 }
