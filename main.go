@@ -97,6 +97,9 @@ func (a *AntispamBot) IsItSpamMessage(message *tgbotapi.Message) bool {
 	if message.ForwardDate == 0 {
 		return false
 	}
+	if len(message.Text) == 0 {
+		return false
+	}
 	date, ok := a.UserMap[user.ID]
 	if !ok {
 		return false
