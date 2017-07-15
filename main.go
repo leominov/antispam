@@ -16,17 +16,22 @@ const (
 	defaultGcInterval  = time.Minute
 )
 
-var TokenFlag = flag.String("token", "", "Telegram Bot API token")
+var (
+	TokenFlag     = flag.String("token", "", "Telegram Bot API token")
+	WatchOnlyFlag = flag.Bool("watch", true, "Only watching")
+)
 
 type AntispamBot struct {
+	WatchOnly        bool
 	Token            string
 	Bot              *tgbotapi.BotAPI
 	UserSpamCounters map[int]int
 	UserMap          map[int]time.Time
 }
 
-func NewBot(token string) *AntispamBot {
+func NewBot(token string, watchOnly bool) *AntispamBot {
 	return &AntispamBot{
+		WatchOnly:        watchOnly,
 		Token:            token,
 		UserSpamCounters: map[int]int{},
 		UserMap:          map[int]time.Time{},
@@ -43,6 +48,7 @@ func (a *AntispamBot) Configure() error {
 	}
 	a.Bot = bot
 	log.Printf("Configure: Authorized on account: %s", a.Bot.Self.UserName)
+	log.Printf("Configure: Watch only: %v", a.WatchOnly)
 	return nil
 }
 
@@ -74,8 +80,12 @@ func (a *AntispamBot) HandleOut(message *tgbotapi.Message) {
 func (a *AntispamBot) HandleSpamMessage(message *tgbotapi.Message) {
 	a.IncreaseUserSpamCounter(message.From)
 	log.Printf("SPAM: user=%v message=%s", message.From, message.Text)
-	msg := tgbotapi.NewMessage(message.Chat.ID, "Is it spam?")
-	a.Bot.Send(msg)
+	if !a.WatchOnly {
+		msg := tgbotapi.NewMessage(message.Chat.ID, "Is it spam?")
+		if _, err := a.Bot.Send(msg); err != nil {
+			fmt.Printf("Send message error: %v", err)
+		}
+	}
 }
 
 func (a *AntispamBot) IsSpamMessage(message *tgbotapi.Message) bool {
@@ -136,7 +146,7 @@ func main() {
 	var err error
 	flag.Parse()
 	log.Print("Starting anti-spam bot...")
-	bot := NewBot(*TokenFlag)
+	bot := NewBot(*TokenFlag, *WatchOnlyFlag)
 	err = bot.Configure()
 	if err != nil {
 		log.Print(err)
