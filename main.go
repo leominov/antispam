@@ -25,6 +25,7 @@ type AntispamBot struct {
 	WatchOnly        bool
 	Token            string
 	Bot              *tgbotapi.BotAPI
+	BotUpdateConfig  tgbotapi.UpdateConfig
 	UserSpamCounters map[int]int
 	UserMap          map[int]time.Time
 }
@@ -47,6 +48,9 @@ func (a *AntispamBot) Configure() error {
 		return fmt.Errorf("Configure: NewBotAPI: %v", err)
 	}
 	a.Bot = bot
+	u := tgbotapi.NewUpdate(0)
+	u.Timeout = 60
+	a.BotUpdateConfig = u
 	log.Printf("Configure: Authorized on account: %s", a.Bot.Self.UserName)
 	log.Printf("Configure: Watch only: %v", a.WatchOnly)
 	return nil
@@ -123,9 +127,7 @@ func (a *AntispamBot) IsItMessage(message *tgbotapi.Message) bool {
 
 func (a *AntispamBot) Start() error {
 	go a.GC()
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 60
-	updates, err := a.Bot.GetUpdatesChan(u)
+	updates, err := a.Bot.GetUpdatesChan(a.BotUpdateConfig)
 	if err != nil {
 		return err
 	}
