@@ -88,7 +88,7 @@ func (a *AntispamBot) HandleSpamMessage(message *tgbotapi.Message) {
 	}
 }
 
-func (a *AntispamBot) IsSpamMessage(message *tgbotapi.Message) bool {
+func (a *AntispamBot) IsItSpamMessage(message *tgbotapi.Message) bool {
 	user := message.From
 	if message.ForwardDate == 0 {
 		return false
@@ -114,6 +114,13 @@ func (a *AntispamBot) IncreaseUserSpamCounter(user *tgbotapi.User) {
 	a.UserSpamCounters[user.ID] = counter
 }
 
+func (a *AntispamBot) IsItMessage(message *tgbotapi.Message) bool {
+	if message == nil || message.From == nil {
+		return false
+	}
+	return true
+}
+
 func (a *AntispamBot) Start() error {
 	go a.GC()
 	u := tgbotapi.NewUpdate(0)
@@ -123,10 +130,10 @@ func (a *AntispamBot) Start() error {
 		return err
 	}
 	for update := range updates {
-		if update.Message == nil || update.Message.From == nil {
+		message := update.Message
+		if !a.IsItMessage(message) {
 			continue
 		}
-		message := update.Message
 		if message.NewChatMember != nil {
 			a.HandleIn(message)
 			continue
@@ -135,7 +142,7 @@ func (a *AntispamBot) Start() error {
 			a.HandleOut(message)
 			continue
 		}
-		if a.IsSpamMessage(message) {
+		if a.IsItSpamMessage(message) {
 			a.HandleSpamMessage(message)
 		}
 	}
